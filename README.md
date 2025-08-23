@@ -23,7 +23,7 @@ Linux의 nload와 bmon에서 영감을 받은 Windows용 CLI 네트워크 대역
 
 ```bash
 # 저장소 복제
-git clone https://github.com/yourusername/nbwin.git
+git clone https://github.com/i978sukhoi/nbwin.git
 cd nbwin
 
 # 프로젝트 빌드
