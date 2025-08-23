@@ -1,0 +1,14 @@
+# Rust 빌드 아티팩트
+/target
+
+# IDE 설정 파일들
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS 생성 파일들
+.DS_Store
+Thumbs.db
+nul
+NUL
