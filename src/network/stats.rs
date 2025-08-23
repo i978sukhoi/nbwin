@@ -59,5 +59,13 @@ impl InterfaceStats {
 }
 
 pub fn get_interface_stats(interface_index: u32) -> Result<InterfaceStats> {
-    crate::network::windows_api::get_interface_statistics(interface_index)
+    #[cfg(windows)]
+    {
+        crate::network::windows_api::get_interface_statistics(interface_index)
+    }
+    
+    #[cfg(unix)]
+    {
+        crate::network::linux_api::get_interface_statistics(interface_index)
+    }
 }

@@ -78,9 +78,17 @@ impl NetworkInterface {
     }
 }
 
-// 네트워크 인터페이스 목록을 가져오는 공개 함수
+// 네트워크 인터페이스 목록을 가져오는 공개 함수 (플랫폼별 구현)
 pub fn list_interfaces() -> Result<Vec<NetworkInterface>> {
-    // crate:: : 현재 crate의 루트부터 시작하는 절대 경로
-    // Windows API를 통해 네트워크 인터페이스 정보를 가져옴
-    crate::network::windows_api::get_network_interfaces()
+    #[cfg(windows)]
+    {
+        // Windows API를 통해 네트워크 인터페이스 정보를 가져옴
+        crate::network::windows_api::get_network_interfaces()
+    }
+    
+    #[cfg(unix)]
+    {
+        // Linux API를 통해 네트워크 인터페이스 정보를 가져옴
+        crate::network::linux_api::get_network_interfaces()
+    }
 }
