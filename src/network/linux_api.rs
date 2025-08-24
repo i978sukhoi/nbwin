@@ -1,156 +1,128 @@
 // Linux 네트워크 인터페이스 API 구현
-// rtnetlink와 /proc/net/dev를 사용한 네트워크 통계 수집
+// /proc/net/dev와 /sys/class/net을 사용한 간단한 구현
 
 use anyhow::{Result, Context};
-use std::collections::HashMap;
 use std::net::IpAddr;
-use rtnetlink::{new_connection, Handle};
-use tokio::runtime::Runtime;
+use std::fs;
+use std::path::Path;
 use crate::network::interface::NetworkInterface;
 use crate::network::stats::InterfaceStats;
 
 /// Linux 시스템에서 네트워크 인터페이스 목록을 가져오는 함수
-/// rtnetlink를 사용하여 시스템의 모든 네트워크 인터페이스 정보를 수집
+/// /sys/class/net 디렉터리를 읽어서 인터페이스 정보 수집
 pub fn get_network_interfaces() -> Result<Vec<NetworkInterface>> {
-    // Tokio 런타임 생성 (비동기 작업을 동기적으로 실행하기 위해)
-    let rt = Runtime::new().context("Failed to create Tokio runtime")?;
-    
-    rt.block_on(async {
-        // rtnetlink 연결 생성
-        let (connection, handle, _) = new_connection().context("Failed to create netlink connection")?;
-        
-        // 백그라운드에서 연결 실행
-        tokio::spawn(connection);
-        
-        collect_interfaces(handle).await
-    })
-}
-
-/// 실제 인터페이스 정보를 수집하는 비동기 함수
-async fn collect_interfaces(handle: Handle) -> Result<Vec<NetworkInterface>> {
     let mut interfaces = Vec::new();
+    let mut index = 1u32;
     
-    // 모든 네트워크 링크 정보 가져오기
-    let mut links = handle.link().get().execute();
+    // /sys/class/net 디렉터리의 모든 인터페이스 읽기
+    let net_dir = Path::new("/sys/class/net");
+    if !net_dir.exists() {
+        return Err(anyhow::anyhow!("/sys/class/net directory not found - not a Linux system?"));
+    }
     
-    while let Some(link) = links.try_next().await.context("Failed to get network links")? {
-        // 링크 인덱스와 이름 추출
-        let index = link.header.index;
-        let name = link.attributes.name.unwrap_or_else(|| format!("interface_{}", index));
+    for entry in fs::read_dir(net_dir).context("Failed to read /sys/class/net")? {
+        let entry = entry.context("Failed to read directory entry")?;
+        let iface_name = entry.file_name().to_string_lossy().to_string();
         
-        // NetworkInterface 인스턴스 생성
-        let mut interface = NetworkInterface::new(index, name.clone(), name.clone());
+        // 인터페이스 정보 생성
+        let mut interface = NetworkInterface::new(index, iface_name.clone(), iface_name.clone());
         
-        // 인터페이스 상태 설정
-        interface.is_up = (link.header.flags & libc::IFF_UP as u32) != 0;
-        interface.is_loopback = (link.header.flags & libc::IFF_LOOPBACK as u32) != 0;
+        // 인터페이스 상태 읽기
+        let operstate_path = entry.path().join("operstate");
+        if let Ok(state) = fs::read_to_string(&operstate_path) {
+            interface.is_up = state.trim() == "up";
+        }
         
-        // MAC 주소 설정
-        if let Some(address) = link.attributes.address {
-            if !address.is_empty() {
-                interface.mac_address = NetworkInterface::format_mac_address(&address);
+        // 루프백 확인
+        let type_path = entry.path().join("type");
+        if let Ok(iface_type) = fs::read_to_string(&type_path) {
+            // type 772 = loopback
+            interface.is_loopback = iface_type.trim() == "772";
+        }
+        
+        // MAC 주소 읽기
+        let address_path = entry.path().join("address");
+        if let Ok(mac) = fs::read_to_string(&address_path) {
+            let mac = mac.trim();
+            if mac != "00:00:00:00:00:00" && !mac.is_empty() {
+                interface.mac_address = mac.to_uppercase();
             }
         }
         
-        // 인터페이스 속도 설정 (가능한 경우)
-        // Linux에서는 ethtool을 통해 얻어야 하므로 기본값 사용
-        interface.speed = 1_000_000_000; // 1 Gbps 기본값
+        // 속도 읽기 (가능한 경우)
+        let speed_path = entry.path().join("speed");
+        if let Ok(speed_str) = fs::read_to_string(&speed_path) {
+            if let Ok(speed_mbps) = speed_str.trim().parse::<u64>() {
+                interface.speed = speed_mbps * 1_000_000; // Mbps to bps
+            } else {
+                interface.speed = 1_000_000_000; // 기본값 1 Gbps
+            }
+        } else {
+            interface.speed = 1_000_000_000; // 기본값 1 Gbps
+        }
         
-        // IP 주소 수집
-        interface.ip_addresses = get_interface_addresses(&handle, index).await?;
+        // IP 주소는 간단히 빈 배열로 (필요시 ip 명령 사용 가능)
+        interface.ip_addresses = Vec::new();
         
         interfaces.push(interface);
+        index += 1;
     }
     
     Ok(interfaces)
 }
 
-/// 특정 인터페이스의 IP 주소들을 가져오는 함수
-async fn get_interface_addresses(handle: &Handle, interface_index: u32) -> Result<Vec<IpAddr>> {
-    let mut addresses = Vec::new();
+/// Linux 시스템에서 특정 인터페이스의 네트워크 통계를 가져오는 함수
+/// /proc/net/dev 파일을 파싱하여 통계 수집
+pub fn get_interface_statistics(interface_index: u32) -> Result<InterfaceStats> {
+    // /proc/net/dev 파일에서 통계 읽기
+    let proc_content = fs::read_to_string("/proc/net/dev")
+        .context("Failed to read /proc/net/dev")?;
     
-    // IPv4 주소 수집
-    let mut addr_v4 = handle.address().get().set_link_index_filter(interface_index).execute();
-    while let Some(addr) = addr_v4.try_next().await.context("Failed to get IPv4 addresses")? {
-        if let Some(ip_addr) = addr.attributes.address {
-            if ip_addr.len() == 4 {
-                let octets = [ip_addr[0], ip_addr[1], ip_addr[2], ip_addr[3]];
-                addresses.push(IpAddr::V4(std::net::Ipv4Addr::from(octets)));
-            } else if ip_addr.len() == 16 {
-                let mut bytes = [0u8; 16];
-                bytes.copy_from_slice(&ip_addr);
-                addresses.push(IpAddr::V6(std::net::Ipv6Addr::from(bytes)));
+    // 인터페이스 목록 가져오기
+    let interfaces = get_network_interfaces()?;
+    let target_interface = interfaces
+        .get((interface_index - 1) as usize)
+        .context("Interface index out of range")?;
+    
+    parse_proc_net_dev(&target_interface.name, &proc_content, interface_index)
+}
+
+/// /proc/net/dev 내용을 파싱하여 인터페이스 통계를 추출하는 함수
+fn parse_proc_net_dev(target_name: &str, content: &str, interface_index: u32) -> Result<InterfaceStats> {
+    // /proc/net/dev 파일 파싱
+    for line in content.lines().skip(2) { // 헤더 2줄 건너뛰기
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        
+        // 인터페이스 이름과 통계 분리
+        if let Some(colon_pos) = line.find(':') {
+            let iface_name = line[..colon_pos].trim();
+            
+            if iface_name == target_name {
+                let stats_str = &line[colon_pos + 1..];
+                let parts: Vec<&str> = stats_str.split_whitespace().collect();
+                
+                if parts.len() >= 16 {
+                    let mut stats = InterfaceStats::new(interface_index);
+                    
+                    // /proc/net/dev 형식:
+                    // RX: bytes, packets, errs, drop, fifo, frame, compressed, multicast
+                    // TX: bytes, packets, errs, drop, fifo, colls, carrier, compressed
+                    stats.bytes_received = parts[0].parse().unwrap_or(0);
+                    stats.packets_received = parts[1].parse().unwrap_or(0);
+                    stats.errors_in = parts[2].parse().unwrap_or(0);
+                    
+                    stats.bytes_sent = parts[8].parse().unwrap_or(0);
+                    stats.packets_sent = parts[9].parse().unwrap_or(0);
+                    stats.errors_out = parts[10].parse().unwrap_or(0);
+                    
+                    return Ok(stats);
+                }
             }
         }
     }
     
-    Ok(addresses)
-}
-
-/// Linux 시스템에서 특정 인터페이스의 네트워크 통계를 가져오는 함수
-/// /proc/net/dev 파일을 파싱하거나 rtnetlink를 사용
-pub fn get_interface_statistics(interface_index: u32) -> Result<InterfaceStats> {
-    // /proc/net/dev 파일에서 통계 읽기 (더 간단하고 안정적)
-    let proc_content = std::fs::read_to_string("/proc/net/dev")
-        .context("Failed to read /proc/net/dev")?;
-    
-    parse_proc_net_dev(interface_index, &proc_content)
-}
-
-/// /proc/net/dev 내용을 파싱하여 인터페이스 통계를 추출하는 함수
-fn parse_proc_net_dev(target_index: u32, content: &str) -> Result<InterfaceStats> {
-    // 인터페이스 이름을 인덱스로 매핑하기 위해 먼저 모든 인터페이스 정보 수집
-    let interfaces = get_network_interfaces()?;
-    let target_name = interfaces
-        .iter()
-        .find(|iface| iface.index == target_index)
-        .map(|iface| &iface.name)
-        .context("Interface not found")?;
-    
-    // /proc/net/dev 파일 파싱
-    for line in content.lines().skip(2) { // 헤더 2줄 건너뛰기
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() < 17 { // 최소 17개 필드 필요
-            continue;
-        }
-        
-        // 인터페이스 이름 추출 (콜론 제거)
-        let iface_name = parts[0].trim_end_matches(':');
-        
-        if iface_name == target_name {
-            let mut stats = InterfaceStats::new(target_index);
-            
-            // /proc/net/dev 형식: 인터페이스명 + 16개 통계 필드
-            // RX: bytes, packets, errs, drop, fifo, frame, compressed, multicast
-            // TX: bytes, packets, errs, drop, fifo, colls, carrier, compressed
-            stats.bytes_received = parts[1].parse().unwrap_or(0);
-            stats.packets_received = parts[2].parse().unwrap_or(0);
-            stats.errors_in = parts[3].parse().unwrap_or(0);
-            
-            stats.bytes_sent = parts[9].parse().unwrap_or(0);
-            stats.packets_sent = parts[10].parse().unwrap_or(0);
-            stats.errors_out = parts[11].parse().unwrap_or(0);
-            
-            return Ok(stats);
-        }
-    }
-    
     Err(anyhow::anyhow!("Interface {} not found in /proc/net/dev", target_name))
-}
-
-// rtnetlink의 futures 트레이트 사용을 위한 import
-use futures::stream::TryStreamExt;
-
-// libc constants를 사용하기 위한 상수 정의 (rtnetlink가 제공하지 않는 경우)
-#[allow(dead_code)]
-mod constants {
-    pub const IFF_UP: u32 = 0x1;
-    pub const IFF_LOOPBACK: u32 = 0x8;
-}
-
-// libc 크레이트가 필요한 경우를 대비한 대체 구현
-#[cfg(not(target_os = "linux"))]
-mod libc {
-    pub const IFF_UP: u32 = 0x1;
-    pub const IFF_LOOPBACK: u32 = 0x8;
 }
