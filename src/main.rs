@@ -1,6 +1,6 @@
 // Rust에서 외부 라이브러리(crate)를 import하는 방법
 // anyhow: 에러 처리를 간단하게 해주는 라이브러리
-use anyhow::Result;
+use anyhow::{Result, Context};
 // crossterm: 크로스플랫폼 터미널 조작 라이브러리 
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
@@ -35,7 +35,8 @@ fn main() -> Result<()> {
 
     // 네트워크 인터페이스 목록 가져오기
     // ? 연산자: Result가 Err이면 함수에서 바로 에러를 반환
-    let interfaces = interface::list_interfaces()?;
+    let interfaces = interface::list_interfaces()
+        .context("Failed to get network interfaces list")?;
     
     // Vec이 비어있는지 확인
     if interfaces.is_empty() {
@@ -47,7 +48,8 @@ fn main() -> Result<()> {
 
     // 터미널을 TUI 모드로 설정
     // raw mode: 터미널이 입력을 즉시 프로그램에 전달 (Enter 없이도)
-    enable_raw_mode()?;
+    enable_raw_mode()
+        .context("Failed to enable terminal raw mode")?;
     
     // stdout 핸들 가져오기
     // mut: 변경 가능한(mutable) 변수로 선언
@@ -63,12 +65,14 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     // ImprovedApp 인스턴스 생성하고 실행
-    let mut app = ImprovedApp::new(interfaces)?;
+    let mut app = ImprovedApp::new(interfaces)
+        .context("Failed to initialize the application")?;
     // app.run()의 결과를 res 변수에 저장
     let res = app.run(&mut terminal);
 
     // 터미널 상태 복원 (정리 작업)
-    disable_raw_mode()?;
+    disable_raw_mode()
+        .context("Failed to restore terminal state")?;
     execute!(
         terminal.backend_mut(), // backend에 대한 mutable 참조 가져오기
         LeaveAlternateScreen,    // 원래 화면으로 복귀
@@ -79,8 +83,12 @@ fn main() -> Result<()> {
     // res가 에러인 경우 출력
     // if let: 패턴 매칭으로 특정 케이스만 처리
     if let Err(err) = res {
-        // {:?}: Debug trait를 사용한 포맷팅
-        println!("{err:?}");
+        // 에러 체인 전체를 출력하여 근본 원인 표시
+        eprintln!("Application error: {err:?}");
+        eprintln!("\nError chain:");
+        for cause in err.chain() {
+            eprintln!("  - {}", cause);
+        }
     }
 
     Ok(())  // 성공적으로 완료

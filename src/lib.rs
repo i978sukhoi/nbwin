@@ -5,6 +5,7 @@
 pub mod network;  // src/network/ 디렉토리의 모듈
 pub mod utils;    // src/utils/ 디렉토리의 모듈  
 pub mod ui;       // src/ui/ 디렉토리의 모듈
+pub mod error;    // src/error.rs 에러 처리 모듈
 
 // pub use: re-export - 이 라이브러리를 사용하는 코드에서 쉽게 접근할 수 있도록 함
 // 예: nbwin::NetworkInterface 대신 use nbwin::NetworkInterface로 바로 사용 가능

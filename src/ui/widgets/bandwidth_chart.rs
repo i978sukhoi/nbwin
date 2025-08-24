@@ -58,8 +58,9 @@ impl BandwidthChart {
 
         // Calculate bounds
         let (min_time, max_time) = if self.download_history.len() >= 2 {
-            let min_t = self.download_history.first().unwrap().0;
-            let max_t = self.download_history.last().unwrap().0;
+            // Safe to access first and last since we checked length >= 2
+            let min_t = self.download_history.first().map(|(t, _)| *t).unwrap_or(0.0);
+            let max_t = self.download_history.last().map(|(t, _)| *t).unwrap_or(60.0);
             (min_t, max_t)
         } else {
             (0.0, 60.0)
@@ -69,6 +70,7 @@ impl BandwidthChart {
             .iter()
             .chain(self.upload_history.iter())
             .map(|(_, rate)| *rate)
+            .filter(|rate| rate.is_finite()) // Filter out NaN/Infinity
             .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .unwrap_or(1024.0) // Default 1KB/s minimum
             .max(1024.0); // At least 1KB/s scale

@@ -128,7 +128,8 @@ fn main() {
         println!("\n[Update {}]", i);
         
         for iface in &active_interfaces {
-            let (base_sent, base_received) = base_values.get(&iface.name).unwrap();
+            let (base_sent, base_received) = base_values.get(&iface.name)
+                .expect("Base values should contain all active interfaces");
             let current_stats = get_mock_stats(
                 *base_sent + i * 1_000_000,
                 *base_received + i * 2_000_000

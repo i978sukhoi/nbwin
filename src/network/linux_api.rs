@@ -17,10 +17,13 @@ pub fn get_network_interfaces() -> Result<Vec<NetworkInterface>> {
     // /sys/class/net 디렉터리의 모든 인터페이스 읽기
     let net_dir = Path::new("/sys/class/net");
     if !net_dir.exists() {
-        return Err(anyhow::anyhow!("/sys/class/net directory not found - not a Linux system?"));
+        return Err(anyhow::anyhow!("/sys/class/net directory not found"))
+            .context("This system may not be Linux or the /sys filesystem is not mounted");
     }
     
-    for entry in fs::read_dir(net_dir).context("Failed to read /sys/class/net")? {
+    for entry in fs::read_dir(net_dir)
+        .context("Failed to read /sys/class/net directory")
+        .context("Check if you have permission to access network information")? {
         let entry = entry.context("Failed to read directory entry")?;
         let iface_name = entry.file_name().to_string_lossy().to_string();
         
@@ -76,7 +79,8 @@ pub fn get_network_interfaces() -> Result<Vec<NetworkInterface>> {
 pub fn get_interface_statistics(interface_index: u32) -> Result<InterfaceStats> {
     // /proc/net/dev 파일에서 통계 읽기
     let proc_content = fs::read_to_string("/proc/net/dev")
-        .context("Failed to read /proc/net/dev")?;
+        .context("Failed to read /proc/net/dev")
+        .context("Network statistics file not accessible")?
     
     // 인터페이스 목록 가져오기
     let interfaces = get_network_interfaces()?;
@@ -124,5 +128,6 @@ fn parse_proc_net_dev(target_name: &str, content: &str, interface_index: u32) ->
         }
     }
     
-    Err(anyhow::anyhow!("Interface {} not found in /proc/net/dev", target_name))
+    Err(anyhow::anyhow!("Interface '{}' not found in /proc/net/dev", target_name))
+        .context("The interface may have been removed or renamed")
 }
