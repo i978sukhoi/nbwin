@@ -2,7 +2,6 @@
 // /proc/net/dev와 /sys/class/net을 사용한 간단한 구현
 
 use anyhow::{Result, Context};
-use std::net::IpAddr;
 use std::fs;
 use std::path::Path;
 use crate::network::interface::NetworkInterface;
@@ -80,7 +79,7 @@ pub fn get_interface_statistics(interface_index: u32) -> Result<InterfaceStats> 
     // /proc/net/dev 파일에서 통계 읽기
     let proc_content = fs::read_to_string("/proc/net/dev")
         .context("Failed to read /proc/net/dev")
-        .context("Network statistics file not accessible")?
+        .context("Network statistics file not accessible")?;
     
     // 인터페이스 목록 가져오기
     let interfaces = get_network_interfaces()?;
