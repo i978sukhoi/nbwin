@@ -393,8 +393,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "nbwin"
-version = "0.1.0"
+name = "nbmon"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bytesize",

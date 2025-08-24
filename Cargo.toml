@@ -1,7 +1,15 @@
 [package]
-name = "nbwin"
-version = "0.1.0"
+name = "nbmon"
+version = "0.2.0"
 edition = "2021"
+description = "Cross-platform network bandwidth monitor with real-time TUI"
+keywords = ["network", "bandwidth", "monitor", "tui", "cross-platform"]
+categories = ["command-line-utilities", "network-programming"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/username/nbmon"
+homepage = "https://github.com/username/nbmon"
+readme = "README.md"
+authors = ["Your Name <your.email@example.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -13,7 +13,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 
 // 우리가 만든 라이브러리에서 필요한 구조체들을 import
-use nbwin::{App, ImprovedApp, network::interface};
+use nbmon::{App, ImprovedApp, network::interface};
 
 // fn main() -> Result<()>: 메인 함수
 // Result<()>는 성공시 (), 실패시 에러를 반환하는 타입
@@ -98,12 +98,12 @@ fn main() -> Result<()> {
 fn run_simple_mode() -> Result<()> {
     // 이 함수에서만 사용할 모듈들을 지역적으로 import
     // use 문을 함수 내부에 쓰면 해당 함수에서만 사용 가능
-    use nbwin::network::stats;
-    use nbwin::utils::format;
+    use nbmon::network::stats;
+    use nbmon::utils::format;
     use std::{thread, time::Duration};  // 스레드와 시간 관련 기능
 
     // println!: 콘솔에 텍스트 출력하는 매크로
-    println!("NBWin - Network Bandwidth Monitor for Windows (Simple Mode)");
+    println!("NBMon - Cross-platform Network Bandwidth Monitor (Simple Mode)");
     // "=".repeat(50): 문자열을 50번 반복
     println!("{}", "=".repeat(50));
     
