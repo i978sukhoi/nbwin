@@ -1,0 +1,114 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        rust: [stable]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Run tests
+      run: cargo test --verbose
+
+    - name: Run benchmark (Ubuntu only)
+      if: matrix.os == 'ubuntu-latest'
+      run: cargo run --example benchmark_parallel
+
+    - name: Build release
+      run: cargo build --release --verbose
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Security audit
+      run: |
+        cargo install cargo-audit
+        cargo audit
+
+  release:
+    name: Release Binaries
+    runs-on: ${{ matrix.os }}
+    needs: [test, security]
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: nbmon
+            asset_name: nbmon-linux-x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: nbmon.exe
+            asset_name: nbmon-windows-x64.exe
+    
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    
+    - name: Build release binary
+      run: cargo build --release --target ${{ matrix.target }}
+    
+    - name: Strip binary (Linux only)
+      if: matrix.os == 'ubuntu-latest'
+      run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+    
+    - name: Create archive
+      shell: bash
+      run: |
+        if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+          tar czf ${{ matrix.asset_name }}.tar.gz -C target/${{ matrix.target }}/release ${{ matrix.artifact_name }}
+        else
+          7z a ${{ matrix.asset_name }}.zip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+        fi
+    
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ${{ matrix.asset_name }}.*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
