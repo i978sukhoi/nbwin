@@ -5,7 +5,10 @@
       "Bash(rustup target:*)",
       "Bash(rustc:*)",
       "Bash(git add:*)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)"
     ],
     "deny": [],
     "ask": []

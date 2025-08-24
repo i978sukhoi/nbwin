@@ -407,7 +407,7 @@ impl ImprovedApp {
             Span::raw(
                 interface
                     .ip_addresses
-                    .get(0)
+                    .first()
                     .map(|ip| ip.to_string())
                     .unwrap_or("None".to_string()),
             ),
