@@ -339,7 +339,7 @@ impl ImprovedApp {
         // Create single unified header block with program title
         let main_block = Block::default()
             .borders(Borders::ALL)
-            .title("nbwin: Network Bandwidth Monitor")
+            .title("nbmon: Cross-platform Network Bandwidth Monitor")
             .style(Style::default().fg(Color::Cyan));
         let inner_area = main_block.inner(area);
         f.render_widget(main_block, area);

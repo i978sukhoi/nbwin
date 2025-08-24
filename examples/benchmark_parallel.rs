@@ -3,15 +3,15 @@
 
 use anyhow::Result;
 use std::time::Instant;
-use nbwin::network::interface;
-use nbwin::network::parallel_stats::{
+use nbmon::network::interface;
+use nbmon::network::parallel_stats::{
     collect_all_stats_parallel, 
     collect_active_stats_parallel,
     StatsCollector
 };
 
 fn main() -> Result<()> {
-    println!("=== NBWin Parallel Stats Collection Benchmark ===\n");
+    println!("=== NBMon Parallel Stats Collection Benchmark ===\n");
     
     // 네트워크 인터페이스 목록 가져오기
     let interfaces = interface::list_interfaces()?;
@@ -90,8 +90,8 @@ fn main() -> Result<()> {
 }
 
 // 순차 처리 벤치마크
-fn benchmark_sequential(interfaces: &[nbwin::NetworkInterface], iterations: usize) -> Result<Vec<f64>> {
-    use nbwin::network::stats::get_interface_stats;
+fn benchmark_sequential(interfaces: &[nbmon::NetworkInterface], iterations: usize) -> Result<Vec<f64>> {
+    use nbmon::network::stats::get_interface_stats;
     
     let mut times = Vec::new();
     
@@ -109,7 +109,7 @@ fn benchmark_sequential(interfaces: &[nbwin::NetworkInterface], iterations: usiz
 }
 
 // 병렬 처리 벤치마크 (전체)
-fn benchmark_parallel_all(interfaces: &[nbwin::NetworkInterface], iterations: usize) -> Result<Vec<f64>> {
+fn benchmark_parallel_all(interfaces: &[nbmon::NetworkInterface], iterations: usize) -> Result<Vec<f64>> {
     let mut times = Vec::new();
     
     for _ in 0..iterations {
@@ -122,7 +122,7 @@ fn benchmark_parallel_all(interfaces: &[nbwin::NetworkInterface], iterations: us
 }
 
 // 병렬 처리 벤치마크 (활성 인터페이스만)
-fn benchmark_parallel_active(interfaces: &[nbwin::NetworkInterface], iterations: usize) -> Result<Vec<f64>> {
+fn benchmark_parallel_active(interfaces: &[nbmon::NetworkInterface], iterations: usize) -> Result<Vec<f64>> {
     let mut times = Vec::new();
     
     for _ in 0..iterations {
@@ -135,7 +135,7 @@ fn benchmark_parallel_active(interfaces: &[nbwin::NetworkInterface], iterations:
 }
 
 // StatsCollector 벤치마크
-fn benchmark_collector(interfaces: &[nbwin::NetworkInterface], iterations: usize) -> Result<Vec<f64>> {
+fn benchmark_collector(interfaces: &[nbmon::NetworkInterface], iterations: usize) -> Result<Vec<f64>> {
     let mut collector = StatsCollector::new(interfaces.to_vec());
     let mut times = Vec::new();
     

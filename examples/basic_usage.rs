@@ -1,4 +1,4 @@
-// Example of how to use nbwin library
+// Example of how to use nbmon library
 // This is a simplified version that shows the architecture
 
 use std::collections::HashMap;
@@ -83,7 +83,7 @@ fn get_mock_stats(base_sent: u64, base_received: u64) -> NetworkStats {
 }
 
 fn main() {
-    println!("NBWin - Network Bandwidth Monitor for Windows");
+    println!("NBMon - Cross-platform Network Bandwidth Monitor");
     println!("{}", "=".repeat(50));
     
     let interfaces = get_mock_interfaces();

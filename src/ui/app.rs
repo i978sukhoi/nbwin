@@ -141,7 +141,7 @@ impl App {
     }
 
     fn render_header(&self, f: &mut Frame, area: Rect) {
-        let header = Paragraph::new("NBWin - Network Bandwidth Monitor")
+        let header = Paragraph::new("NBMon - Cross-platform Network Bandwidth Monitor")
             .style(Style::default().fg(Color::Cyan))
             .block(Block::default().borders(Borders::ALL).title("Status"));
         f.render_widget(header, area);

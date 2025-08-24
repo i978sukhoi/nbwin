@@ -4,13 +4,14 @@
 
 ## 프로젝트 개요
 
-`nbwin`은 Linux의 nload와 bmon에서 영감을 받은 Windows용 CLI 네트워크 대역폭 모니터링 도구입니다. Rust로 작성되었으며, Windows 시스템에서 실시간 네트워크 트래픽 시각화 및 통계를 터미널로 제공합니다.
+`nbmon` (Network Bandwidth Monitor)은 Linux의 nload와 bmon에서 영감을 받은 크로스플랫폼 CLI 네트워크 대역폭 모니터링 도구입니다. Rust로 작성되었으며, Windows와 Linux 시스템에서 실시간 네트워크 트래픽 시각화 및 통계를 터미널로 제공합니다.
 
-### 현재 상태: 🚀 **프로덕션 준비 완료**
-- ✅ 완전 기능 TUI 애플리케이션 
-- ✅ 대규모 리팩토링 완료 (DRY, 캡슐화, 에러처리)
-- ✅ Rust 학습용 교육 주석 200+ 줄 추가
+### 현재 상태: 🚀 **v0.2.0 - 크로스플랫폼 지원 및 성능 최적화**
+- ✅ 크로스플랫폼 지원 (Windows + Linux)
+- ✅ 병렬 통계 수집 (44% 성능 향상)
+- ✅ 강화된 에러 처리 및 디버깅
 - ✅ 3가지 실행 모드 지원
+- ✅ 성능 벤치마크 도구
 
 ## 주요 개발 명령어
 
@@ -20,6 +21,7 @@
 - `cargo run` - 기본 향상된 TUI 모드로 빌드 및 실행
 - `cargo run -- --classic` - 클래식 TUI 모드로 실행
 - `cargo run -- --simple` - 단순 콘솔 출력 모드로 실행
+- `cargo run --example benchmark_parallel` - 성능 벤치마크 실행
 - `cargo clean` - target 디렉터리 정리
 
 ### 테스트 및 품질 관리
