@@ -6,8 +6,8 @@ description = "Cross-platform network bandwidth monitor with real-time TUI"
 keywords = ["network", "bandwidth", "monitor", "tui", "cross-platform"]
 categories = ["command-line-utilities", "network-programming"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/username/nbmon"
-homepage = "https://github.com/username/nbmon"
+repository = "https://github.com/i978sukhoi/nbmon"
+homepage = "https://github.com/i978sukhoi/nbmon"
 readme = "README.md"
 authors = ["Your Name <your.email@example.com>"]
 
