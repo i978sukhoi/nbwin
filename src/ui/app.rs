@@ -11,6 +11,7 @@ use ratatui::{
 };
 
 use crate::network::{interface::NetworkInterface, stats::{InterfaceStats, BandwidthStats}};
+use crate::network::parallel_stats::collect_all_stats_parallel;
 use crate::utils::format;
 
 pub struct App {
@@ -90,12 +91,30 @@ impl App {
     fn update_stats(&mut self) -> Result<()> {
         let prev_stats = self.interface_stats.clone();
         
-        for (i, interface) in self.interfaces.iter().enumerate() {
-            if let Ok(current_stats) = crate::network::stats::get_interface_stats(interface.index) {
-                if i < prev_stats.len() {
-                    self.bandwidth_stats[i] = current_stats.calculate_bandwidth(&prev_stats[i]);
+        // 병렬로 모든 인터페이스의 통계 수집
+        match collect_all_stats_parallel(&self.interfaces) {
+            Ok(new_stats) => {
+                // 성공적으로 수집된 통계 업데이트
+                for (i, current_stats) in new_stats.into_iter().enumerate() {
+                    if i < prev_stats.len() {
+                        self.bandwidth_stats[i] = current_stats.calculate_bandwidth(&prev_stats[i]);
+                    }
+                    if i < self.interface_stats.len() {
+                        self.interface_stats[i] = current_stats;
+                    }
                 }
-                self.interface_stats[i] = current_stats;
+            }
+            Err(e) => {
+                // 병렬 수집 실패 시 순차 수집으로 폴백
+                eprintln!("Warning: Parallel stats collection failed: {}, using sequential fallback", e);
+                for (i, interface) in self.interfaces.iter().enumerate() {
+                    if let Ok(current_stats) = crate::network::stats::get_interface_stats(interface.index) {
+                        if i < prev_stats.len() {
+                            self.bandwidth_stats[i] = current_stats.calculate_bandwidth(&prev_stats[i]);
+                        }
+                        self.interface_stats[i] = current_stats;
+                    }
+                }
             }
         }
         
