@@ -1,5 +1,5 @@
-pub mod interface_list;
 pub mod bandwidth_chart;
+pub mod interface_list;
 
-pub use interface_list::InterfaceListWidget;
 pub use bandwidth_chart::BandwidthChart;
+pub use interface_list::InterfaceListWidget;

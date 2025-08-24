@@ -1,9 +1,9 @@
 // 커스텀 에러 타입과 에러 처리 유틸리티
-// 
+//
 // 이 모듈은 애플리케이션 전체에서 사용되는 에러 타입과 헬퍼 함수들을 정의합니다.
 
-use std::fmt;
 use anyhow::{Context, Result};
+use std::fmt;
 
 /// 애플리케이션 에러 타입
 #[derive(Debug)]
@@ -38,7 +38,7 @@ impl std::error::Error for AppError {}
 pub trait ErrorContext<T> {
     /// 에러에 사용자 친화적인 컨텍스트를 추가
     fn user_context(self, msg: &str) -> Result<T>;
-    
+
     /// 에러에 기술적 컨텍스트를 추가
     fn tech_context(self, msg: &str) -> Result<T>;
 }
@@ -47,7 +47,7 @@ impl<T> ErrorContext<T> for Result<T> {
     fn user_context(self, msg: &str) -> Result<T> {
         self.with_context(|| format!("❌ {}", msg))
     }
-    
+
     fn tech_context(self, msg: &str) -> Result<T> {
         self.with_context(|| format!("[Technical] {}", msg))
     }
@@ -83,7 +83,10 @@ pub fn handle_recoverable_error<T>(result: Result<T>, default: T, context: &str)
     match result {
         Ok(val) => val,
         Err(e) => {
-            eprintln!("⚠️  Recoverable error: {} - Using default value. Context: {}", e, context);
+            eprintln!(
+                "⚠️  Recoverable error: {} - Using default value. Context: {}",
+                e, context
+            );
             default
         }
     }
@@ -93,7 +96,7 @@ pub fn handle_recoverable_error<T>(result: Result<T>, default: T, context: &str)
 #[cfg(target_os = "windows")]
 pub fn handle_windows_error(error_code: u32, operation: &str) -> AppError {
     use windows::core::Error;
-    
+
     let win_error = Error::from_win32();
     let message = format!(
         "Windows API error during {}: Code {} - {}",
@@ -101,7 +104,7 @@ pub fn handle_windows_error(error_code: u32, operation: &str) -> AppError {
         error_code,
         win_error.message()
     );
-    
+
     AppError::SystemApi(message)
 }
 
@@ -113,6 +116,6 @@ pub fn handle_linux_error(errno: i32, operation: &str) -> AppError {
         std::io::Error::from_raw_os_error(errno),
         errno
     );
-    
+
     AppError::SystemApi(message)
 }

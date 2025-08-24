@@ -17,9 +17,9 @@ pub struct InterfaceListWidget<'a> {
 
 impl<'a> InterfaceListWidget<'a> {
     pub fn new(
-        interfaces: &'a [NetworkInterface], 
-        bandwidth_stats: &'a [Option<BandwidthStats>], 
-        selected: usize
+        interfaces: &'a [NetworkInterface],
+        bandwidth_stats: &'a [Option<BandwidthStats>],
+        selected: usize,
     ) -> Self {
         Self {
             interfaces,
@@ -35,7 +35,8 @@ impl<'a> InterfaceListWidget<'a> {
             .enumerate()
             .map(|(i, interface)| {
                 let bandwidth_text = if let Some(Some(bandwidth)) = self.bandwidth_stats.get(i) {
-                    format!(" ↓{} ↑{}", 
+                    format!(
+                        " ↓{} ↑{}",
                         format::format_bytes_per_sec(bandwidth.download_rate),
                         format::format_bytes_per_sec(bandwidth.upload_rate)
                     )
@@ -60,17 +61,20 @@ impl<'a> InterfaceListWidget<'a> {
                 let mut spans = vec![
                     Span::styled(
                         format!("[{}]", type_indicator),
-                        Style::default().fg(Color::Blue)
+                        Style::default().fg(Color::Blue),
                     ),
                     Span::styled(
                         format!(" {} ", if interface.is_up { "●" } else { "○" }),
-                        Style::default().fg(status_color)
+                        Style::default().fg(status_color),
                     ),
                     Span::raw(format!("{} ", interface.display_name())),
                 ];
 
                 if !bandwidth_text.is_empty() {
-                    spans.push(Span::styled(bandwidth_text, Style::default().fg(Color::Yellow)));
+                    spans.push(Span::styled(
+                        bandwidth_text,
+                        Style::default().fg(Color::Yellow),
+                    ));
                 }
 
                 ListItem::new(Line::from(spans))
@@ -78,9 +82,11 @@ impl<'a> InterfaceListWidget<'a> {
             .collect();
 
         let list = List::new(items)
-            .block(Block::default()
-                .borders(Borders::ALL)
-                .title("Network Interfaces (P=Physical, V=Virtual, L=Loopback)"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Network Interfaces (P=Physical, V=Virtual, L=Loopback)"),
+            )
             .highlight_style(Style::default().bg(Color::DarkGray).fg(Color::White))
             .highlight_symbol("► ");
 

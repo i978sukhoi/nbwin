@@ -35,10 +35,12 @@ impl BandwidthChart {
 
     pub fn update(&mut self, bandwidth: &BandwidthStats) {
         self.time_counter += 1.0;
-        
+
         // Add new data points
-        self.download_history.push((self.time_counter, bandwidth.download_rate));
-        self.upload_history.push((self.time_counter, bandwidth.upload_rate));
+        self.download_history
+            .push((self.time_counter, bandwidth.download_rate));
+        self.upload_history
+            .push((self.time_counter, bandwidth.upload_rate));
 
         // Trim history if too long
         if self.download_history.len() > self.max_history {
@@ -50,7 +52,11 @@ impl BandwidthChart {
     pub fn render(&self, f: &mut Frame, area: Rect) {
         if self.download_history.is_empty() {
             let no_data = Paragraph::new("No data available")
-                .block(Block::default().borders(Borders::ALL).title("Bandwidth Chart"))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title("Bandwidth Chart"),
+                )
                 .style(Style::default().fg(Color::Gray));
             f.render_widget(no_data, area);
             return;
@@ -59,14 +65,23 @@ impl BandwidthChart {
         // Calculate bounds
         let (min_time, max_time) = if self.download_history.len() >= 2 {
             // Safe to access first and last since we checked length >= 2
-            let min_t = self.download_history.first().map(|(t, _)| *t).unwrap_or(0.0);
-            let max_t = self.download_history.last().map(|(t, _)| *t).unwrap_or(60.0);
+            let min_t = self
+                .download_history
+                .first()
+                .map(|(t, _)| *t)
+                .unwrap_or(0.0);
+            let max_t = self
+                .download_history
+                .last()
+                .map(|(t, _)| *t)
+                .unwrap_or(60.0);
             (min_t, max_t)
         } else {
             (0.0, 60.0)
         };
 
-        let max_rate = self.download_history
+        let max_rate = self
+            .download_history
             .iter()
             .chain(self.upload_history.iter())
             .map(|(_, rate)| *rate)
@@ -91,7 +106,11 @@ impl BandwidthChart {
         ];
 
         let chart = Chart::new(datasets)
-            .block(Block::default().borders(Borders::ALL).title("Bandwidth History"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Bandwidth History"),
+            )
             .x_axis(
                 Axis::default()
                     .title("Time (s)")

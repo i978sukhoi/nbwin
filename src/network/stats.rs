@@ -1,5 +1,5 @@
-use std::time::Instant;
 use anyhow::Result;
+use std::time::Instant;
 
 #[derive(Debug, Clone, Default)]
 pub struct InterfaceStats {
@@ -35,7 +35,7 @@ impl InterfaceStats {
     pub fn calculate_bandwidth(&self, previous: &InterfaceStats) -> Option<BandwidthStats> {
         let current_time = self.timestamp?;
         let previous_time = previous.timestamp?;
-        
+
         let duration = current_time.duration_since(previous_time);
         if duration.as_secs_f64() == 0.0 {
             return None;
@@ -63,7 +63,7 @@ pub fn get_interface_stats(interface_index: u32) -> Result<InterfaceStats> {
     {
         crate::network::windows_api::get_interface_statistics(interface_index)
     }
-    
+
     #[cfg(unix)]
     {
         crate::network::linux_api::get_interface_statistics(interface_index)

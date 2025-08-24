@@ -1,6 +1,6 @@
 // 네트워크 인터페이스 정보를 다루는 모듈
-use std::net::IpAddr;  // 표준 라이브러리의 IP 주소 타입
-use anyhow::Result;    // 에러 처리용 Result 타입
+use anyhow::Result;
+use std::net::IpAddr; // 표준 라이브러리의 IP 주소 타입 // 에러 처리용 Result 타입
 
 // #[derive(...)]: 자동으로 trait 구현 생성
 // Debug: println!("{:?}", obj) 형태로 디버그 출력 가능
@@ -8,14 +8,14 @@ use anyhow::Result;    // 에러 처리용 Result 타입
 #[derive(Debug, Clone)]
 pub struct NetworkInterface {
     // pub: 구조체 필드를 외부에서 접근 가능하도록 공개
-    pub index: u32,                    // 네트워크 인터페이스 인덱스 번호
-    pub name: String,                  // 인터페이스 이름 (예: "eth0")
-    pub description: String,           // 사용자 친화적 설명 (예: "Realtek PCIe GbE")
-    pub mac_address: String,           // MAC 주소 문자열 (예: "00:11:22:33:44:55")
-    pub ip_addresses: Vec<IpAddr>,     // IP 주소 목록 (여러개 가능)
-    pub is_up: bool,                   // 인터페이스 활성 상태 (UP/DOWN)
-    pub is_loopback: bool,             // 루프백 인터페이스 여부
-    pub speed: u64,                    // 인터페이스 속도 (bits per second)
+    pub index: u32,                // 네트워크 인터페이스 인덱스 번호
+    pub name: String,              // 인터페이스 이름 (예: "eth0")
+    pub description: String,       // 사용자 친화적 설명 (예: "Realtek PCIe GbE")
+    pub mac_address: String,       // MAC 주소 문자열 (예: "00:11:22:33:44:55")
+    pub ip_addresses: Vec<IpAddr>, // IP 주소 목록 (여러개 가능)
+    pub is_up: bool,               // 인터페이스 활성 상태 (UP/DOWN)
+    pub is_loopback: bool,         // 루프백 인터페이스 여부
+    pub speed: u64,                // 인터페이스 속도 (bits per second)
 }
 
 // impl 블록: 구조체에 메서드 구현
@@ -43,10 +43,10 @@ impl NetworkInterface {
     // &[u8]: u8 바이트들의 슬라이스에 대한 참조
     pub fn format_mac_address(bytes: &[u8]) -> String {
         bytes
-            .iter()                          // 바이트 배열의 iterator 생성
-            .map(|b| format!("{:02X}", b))   // 각 바이트를 2자리 16진수 대문자로 포맷
-            .collect::<Vec<_>>()             // 결과를 Vec<String>으로 수집
-            .join(":")                       // ":"로 연결하여 하나의 문자열로 만듦
+            .iter() // 바이트 배열의 iterator 생성
+            .map(|b| format!("{:02X}", b)) // 각 바이트를 2자리 16진수 대문자로 포맷
+            .collect::<Vec<_>>() // 결과를 Vec<String>으로 수집
+            .join(":") // ":"로 연결하여 하나의 문자열로 만듦
     }
 
     // 가상 네트워크 인터페이스인지 판별하는 메서드
@@ -54,10 +54,10 @@ impl NetworkInterface {
     pub fn is_virtual(&self) -> bool {
         // description을 소문자로 변환하여 대소문자 구분 없이 비교
         let lower_desc = self.description.to_lowercase();
-        
+
         // || 연산자: 논리 OR, 하나라도 true면 전체가 true
         // .contains(): 문자열에 특정 부분 문자열이 포함되어 있는지 확인
-        lower_desc.contains("virtual") 
+        lower_desc.contains("virtual")
             || lower_desc.contains("vmware")
             || lower_desc.contains("virtualbox")
             || lower_desc.contains("hyper-v")
@@ -85,7 +85,7 @@ pub fn list_interfaces() -> Result<Vec<NetworkInterface>> {
         // Windows API를 통해 네트워크 인터페이스 정보를 가져옴
         crate::network::windows_api::get_network_interfaces()
     }
-    
+
     #[cfg(unix)]
     {
         // Linux API를 통해 네트워크 인터페이스 정보를 가져옴

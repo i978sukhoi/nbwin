@@ -1,5 +1,4 @@
 use anyhow::Result;
-use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{
     backend::Backend,
@@ -9,9 +8,13 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame, Terminal,
 };
+use std::time::{Duration, Instant};
 
-use crate::network::{interface::NetworkInterface, stats::{InterfaceStats, BandwidthStats}};
 use crate::network::parallel_stats::collect_all_stats_parallel;
+use crate::network::{
+    interface::NetworkInterface,
+    stats::{BandwidthStats, InterfaceStats},
+};
 use crate::utils::format;
 
 pub struct App {
@@ -28,7 +31,7 @@ impl App {
     pub fn new(interfaces: Vec<NetworkInterface>) -> Result<Self> {
         let interface_count = interfaces.len();
         let mut interface_stats = Vec::new();
-        
+
         // Initialize stats for all interfaces
         for interface in &interfaces {
             match crate::network::stats::get_interface_stats(interface.index) {
@@ -66,7 +69,8 @@ impl App {
                                 }
                             }
                             KeyCode::Down => {
-                                if self.selected_interface < self.interfaces.len().saturating_sub(1) {
+                                if self.selected_interface < self.interfaces.len().saturating_sub(1)
+                                {
                                     self.selected_interface += 1;
                                 }
                             }
@@ -90,7 +94,7 @@ impl App {
 
     fn update_stats(&mut self) -> Result<()> {
         let prev_stats = self.interface_stats.clone();
-        
+
         // 병렬로 모든 인터페이스의 통계 수집
         match collect_all_stats_parallel(&self.interfaces) {
             Ok(new_stats) => {
@@ -106,18 +110,24 @@ impl App {
             }
             Err(e) => {
                 // 병렬 수집 실패 시 순차 수집으로 폴백
-                eprintln!("Warning: Parallel stats collection failed: {}, using sequential fallback", e);
+                eprintln!(
+                    "Warning: Parallel stats collection failed: {}, using sequential fallback",
+                    e
+                );
                 for (i, interface) in self.interfaces.iter().enumerate() {
-                    if let Ok(current_stats) = crate::network::stats::get_interface_stats(interface.index) {
+                    if let Ok(current_stats) =
+                        crate::network::stats::get_interface_stats(interface.index)
+                    {
                         if i < prev_stats.len() {
-                            self.bandwidth_stats[i] = current_stats.calculate_bandwidth(&prev_stats[i]);
+                            self.bandwidth_stats[i] =
+                                current_stats.calculate_bandwidth(&prev_stats[i]);
                         }
                         self.interface_stats[i] = current_stats;
                     }
                 }
             }
         }
-        
+
         self.last_update = Instant::now();
         Ok(())
     }
@@ -127,10 +137,10 @@ impl App {
             .direction(Direction::Vertical)
             .margin(1)
             .constraints([
-                Constraint::Length(3),  // Header
-                Constraint::Min(10),    // Interface list
-                Constraint::Length(6),  // Selected interface details
-                Constraint::Length(3),  // Help
+                Constraint::Length(3), // Header
+                Constraint::Min(10),   // Interface list
+                Constraint::Length(6), // Selected interface details
+                Constraint::Length(3), // Help
             ])
             .split(f.size());
 
@@ -154,7 +164,8 @@ impl App {
             .enumerate()
             .map(|(i, interface)| {
                 let bandwidth_text = if let Some(Some(bandwidth)) = self.bandwidth_stats.get(i) {
-                    format!(" ↓{} ↑{}", 
+                    format!(
+                        " ↓{} ↑{}",
                         format::format_bytes_per_sec(bandwidth.download_rate),
                         format::format_bytes_per_sec(bandwidth.upload_rate)
                     )
@@ -171,13 +182,16 @@ impl App {
                 let mut spans = vec![
                     Span::styled(
                         format!("[{}] ", if interface.is_up { "UP" } else { "DOWN" }),
-                        Style::default().fg(status_color)
+                        Style::default().fg(status_color),
                     ),
                     Span::raw(format!("{} ", interface.display_name())),
                 ];
 
                 if !bandwidth_text.is_empty() {
-                    spans.push(Span::styled(bandwidth_text, Style::default().fg(Color::Yellow)));
+                    spans.push(Span::styled(
+                        bandwidth_text,
+                        Style::default().fg(Color::Yellow),
+                    ));
                 }
 
                 ListItem::new(Line::from(spans))
@@ -185,11 +199,20 @@ impl App {
             .collect();
 
         let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Network Interfaces"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Network Interfaces"),
+            )
             .highlight_style(Style::default().bg(Color::DarkGray))
             .highlight_symbol("> ");
 
-        f.render_stateful_widget(list, area, &mut ratatui::widgets::ListState::default().with_selected(Some(self.selected_interface)));
+        f.render_stateful_widget(
+            list,
+            area,
+            &mut ratatui::widgets::ListState::default()
+                .with_selected(Some(self.selected_interface)),
+        );
     }
 
     fn render_interface_details(&self, f: &mut Frame, area: Rect) {
@@ -203,10 +226,7 @@ impl App {
                     Span::raw("Index: "),
                     Span::raw(interface.index.to_string()),
                 ]),
-                Line::from(vec![
-                    Span::raw("MAC: "),
-                    Span::raw(&interface.mac_address),
-                ]),
+                Line::from(vec![Span::raw("MAC: "), Span::raw(&interface.mac_address)]),
             ];
 
             if interface.speed > 0 {
@@ -214,14 +234,17 @@ impl App {
                     Span::raw("Speed: "),
                     Span::styled(
                         format::format_bits_per_sec(interface.speed),
-                        Style::default().fg(Color::Green)
+                        Style::default().fg(Color::Green),
                     ),
                 ]));
             }
 
             let text = Text::from(lines);
-            let paragraph = Paragraph::new(text)
-                .block(Block::default().borders(Borders::ALL).title("Interface Details"));
+            let paragraph = Paragraph::new(text).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Interface Details"),
+            );
             f.render_widget(paragraph, area);
         }
     }
