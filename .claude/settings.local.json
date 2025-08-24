@@ -4,7 +4,8 @@
       "Bash(cargo:*)",
       "Bash(rustup target:*)",
       "Bash(rustc:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

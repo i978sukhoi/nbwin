@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, Context};
 use std::mem;
 use std::net::{IpAddr, Ipv4Addr};
 use std::ptr;
@@ -44,7 +44,8 @@ pub fn get_network_interfaces() -> Result<Vec<NetworkInterface>> {
         }
 
         if result != ERROR_SUCCESS {
-            return Err(anyhow::anyhow!("Failed to get network adapters: error code {}", result));
+            return Err(anyhow::anyhow!("Failed to get network adapters: error code {}", result))
+                .context("Windows API GetAdaptersAddresses failed");
         }
 
         let mut interfaces = Vec::new();
@@ -121,8 +122,14 @@ fn wide_string_to_string(ptr: *const u16) -> String {
 
     unsafe {
         let mut len = 0;
-        while *ptr.offset(len) != 0 {
+        // Limit search to prevent potential infinite loops
+        const MAX_STRING_LENGTH: isize = 1024;
+        while len < MAX_STRING_LENGTH && *ptr.offset(len) != 0 {
             len += 1;
+        }
+
+        if len == 0 {
+            return String::new();
         }
 
         let slice = std::slice::from_raw_parts(ptr, len as usize);
@@ -137,7 +144,8 @@ pub fn get_interface_statistics(interface_index: u32) -> Result<InterfaceStats> 
         
         let result = GetIfEntry2(&mut if_row);
         if result != ERROR_SUCCESS {
-            return Err(anyhow::anyhow!("Failed to get interface statistics: error code {}", result));
+            return Err(anyhow::anyhow!("Failed to get interface statistics for index {}: error code {}", interface_index, result))
+                .context("Windows API GetIfEntry2 failed - interface may not exist or be accessible");
         }
 
         let mut stats = InterfaceStats::new(interface_index);
