@@ -13,7 +13,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 
 // 우리가 만든 라이브러리에서 필요한 구조체들을 import
-use nbmon::{network::interface, App, ImprovedApp};
+use nbmon::{network::{interface, public_ip}, App, ImprovedApp};
 
 // fn main() -> Result<()>: 메인 함수
 // Result<()>는 성공시 (), 실패시 에러를 반환하는 타입
@@ -29,7 +29,19 @@ fn main() -> Result<()> {
         match args[1].as_str() {
             "--simple" => return run_simple_mode(),  // 간단한 콘솔 모드
             "--classic" => return run_classic_tui(), // 클래식 TUI 모드
-            _ => {}                                  // 와일드카드 패턴: 나머지 모든 경우 (기본값)
+            "--help" | "-h" => {
+                show_help();
+                return Ok(());
+            }
+            "--version" | "-v" => {
+                show_version();
+                return Ok(());
+            }
+            _ => {
+                eprintln!("Unknown option: {}", args[1]);
+                eprintln!("Use --help for usage information.");
+                return Ok(());
+            }
         }
     }
 
@@ -151,7 +163,22 @@ fn run_simple_mode() -> Result<()> {
             println!("    IP Addresses:");
             // &iface.ip_addresses: 벡터에 대한 참조 (소유권을 이동시키지 않음)
             for ip in &iface.ip_addresses {
-                println!("        - {}", ip);
+                let is_private = public_ip::is_private_ip(ip);
+                if is_private {
+                    println!("        - {} (Private)", ip);
+                } else {
+                    println!("        - {} (Public)", ip);
+                }
+            }
+            
+            // 사설 IP가 있는 경우 Public IP도 표시
+            if iface.ip_addresses.iter().any(|ip| public_ip::is_private_ip(ip)) {
+                print!("    Public IP: ");
+                if let Some(public_ip_addr) = public_ip::get_public_ip() {
+                    println!("{}", public_ip_addr);
+                } else {
+                    println!("Unable to fetch (check internet connection)");
+                }
             }
         }
     }
@@ -258,4 +285,49 @@ fn run_classic_tui() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// 도움말 메시지를 출력하는 함수
+fn show_help() {
+    println!("NBMon v{} - Cross-platform Network Bandwidth Monitor", env!("CARGO_PKG_VERSION"));
+    println!("Linux의 nload와 bmon에서 영감을 받은 실시간 네트워크 트래픽 모니터링 도구");
+    println!();
+    println!("사용법:");
+    println!("    nbmon [OPTIONS]");
+    println!();
+    println!("옵션:");
+    println!("    (기본)        향상된 TUI 모드 - Linux nload 스타일의 실시간 그래프");
+    println!("    --classic     클래식 TUI 모드 - 단순한 리스트 형태의 인터페이스");
+    println!("    --simple      단순 콘솔 모드 - 한 번 출력 후 종료");
+    println!("    -h, --help    이 도움말 메시지 출력");
+    println!("    -v, --version 버전 정보 출력");
+    println!();
+    println!("키보드 단축키 (TUI 모드):");
+    println!("    ←/h           이전 네트워크 인터페이스");
+    println!("    →/l           다음 네트워크 인터페이스");
+    println!("    Space         수동 업데이트");
+    println!("    r             히스토리 초기화");
+    println!("    q             프로그램 종료");
+    println!();
+    println!("기능:");
+    println!("    • 실시간 네트워크 대역폭 모니터링");
+    println!("    • 업로드/다운로드 속도 그래프 (스파크라인)");
+    println!("    • 다중 네트워크 인터페이스 지원");
+    println!("    • Private/Public IP 자동 감지 및 표시");
+    println!("    • 크로스플랫폼 지원 (Windows/Linux)");
+    println!("    • 낮은 리소스 사용량");
+    println!();
+    println!("예제:");
+    println!("    nbmon                # 기본 향상된 TUI 모드 실행");
+    println!("    nbmon --classic      # 클래식 TUI 모드 실행");
+    println!("    nbmon --simple       # 간단한 정보 출력 후 종료");
+    println!();
+    println!("저장소: https://github.com/i978sukhoi/nbmon");
+}
+
+/// 버전 정보를 출력하는 함수
+fn show_version() {
+    println!("NBMon v{}", env!("CARGO_PKG_VERSION"));
+    println!("Cross-platform Network Bandwidth Monitor");
+    println!("Built with Rust");
 }

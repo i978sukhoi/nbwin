@@ -16,7 +16,7 @@ use ratatui::{
 use std::collections::VecDeque; // 양방향 큐 (히스토리 데이터 저장용)
 use std::time::{Duration, Instant}; // 시간 측정 및 간격 제어
 
-use crate::network::{interface::NetworkInterface, stats::InterfaceStats};
+use crate::network::{interface::NetworkInterface, public_ip, stats::InterfaceStats};
 use crate::utils::format; // 데이터 포맷팅 유틸리티
 
 // 애플리케이션 설정 상수들 (매직 넘버 제거)
@@ -58,6 +58,8 @@ pub struct ImprovedApp {
     should_quit: bool,                 // 애플리케이션 종료 플래그
     max_download_rate: f64,            // 그래프 스케일링용 최대 다운로드 속도
     max_upload_rate: f64,              // 그래프 스케일링용 최대 업로드 속도
+    public_ip: Option<String>,         // Public IP 주소 (캐시됨)
+    last_public_ip_update: Option<Instant>, // Public IP 마지막 업데이트 시간
 }
 
 // ImprovedApp 구조체의 메서드 구현
@@ -87,6 +89,9 @@ impl ImprovedApp {
             }
         }
 
+        // 백그라운드에서 Public IP 가져오기 시작
+        public_ip::update_public_ip_async();
+
         Ok(Self {
             interfaces,
             active_interfaces,
@@ -99,6 +104,8 @@ impl ImprovedApp {
             should_quit: false,
             max_download_rate: DEFAULT_MAX_RATE_MBPS * 1024.0 * 1024.0, // MB/s를 bytes/s로 변환
             max_upload_rate: DEFAULT_MAX_RATE_MBPS * 1024.0 * 1024.0,
+            public_ip: None,
+            last_public_ip_update: None,
         })
     }
 
@@ -257,6 +264,18 @@ impl ImprovedApp {
     }
 
     fn update_stats(&mut self) -> Result<()> {
+        // Public IP 업데이트 (5분마다 또는 처음)
+        let should_update_public_ip = self.last_public_ip_update
+            .map(|last| last.elapsed() > Duration::from_secs(300))
+            .unwrap_or(true);
+        
+        if should_update_public_ip {
+            if let Some(ip) = public_ip::get_public_ip() {
+                self.public_ip = Some(ip);
+                self.last_public_ip_update = Some(Instant::now());
+            }
+        }
+        
         // 개선된 에러 처리: 안전한 인덱스 접근
         let interface_idx = self.get_current_interface_index()?;
         let interface = &self.interfaces[interface_idx];
@@ -398,19 +417,37 @@ impl ImprovedApp {
             .alignment(Alignment::Center);
         f.render_widget(interface_paragraph, chunks[0]);
 
+        // IP 주소 처리 - Private과 Public 구분
+        let ip_display = if let Some(local_ip) = interface.ip_addresses.first() {
+            let is_private = public_ip::is_private_ip(local_ip);
+            let local_str = local_ip.to_string();
+            
+            if is_private {
+                // 사설 IP인 경우 Public IP도 함께 표시
+                if let Some(ref public_ip) = self.public_ip {
+                    format!("{} (Public: {})", local_str, public_ip)
+                } else {
+                    format!("{} (Public: Loading...)", local_str)
+                }
+            } else {
+                // 이미 공인 IP인 경우
+                local_str
+            }
+        } else {
+            if cfg!(unix) {
+                "None (install 'ip' or 'ifconfig')".to_string()
+            } else {
+                "None".to_string()
+            }
+        };
+
         // Single line with all essential info
         let details_line = vec![
             Span::styled("MAC: ", Style::default().fg(Color::Yellow)),
             Span::raw(&interface.mac_address),
             Span::raw("  "),
             Span::styled("IP: ", Style::default().fg(Color::Yellow)),
-            Span::raw(
-                interface
-                    .ip_addresses
-                    .first()
-                    .map(|ip| ip.to_string())
-                    .unwrap_or("None".to_string()),
-            ),
+            Span::raw(ip_display),
             Span::raw("  "),
             Span::styled("Total: ", Style::default().fg(Color::Yellow)),
             Span::raw(format!(

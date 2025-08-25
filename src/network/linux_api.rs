@@ -5,7 +5,9 @@ use crate::network::interface::NetworkInterface;
 use crate::network::stats::InterfaceStats;
 use anyhow::{Context, Result};
 use std::fs;
+use std::net::IpAddr;
 use std::path::Path;
+use std::process::Command;
 
 /// Linux 시스템에서 네트워크 인터페이스 목록을 가져오는 함수
 /// /sys/class/net 디렉터리를 읽어서 인터페이스 정보 수집
@@ -64,8 +66,8 @@ pub fn get_network_interfaces() -> Result<Vec<NetworkInterface>> {
             interface.speed = 1_000_000_000; // 기본값 1 Gbps
         }
 
-        // IP 주소는 간단히 빈 배열로 (필요시 ip 명령 사용 가능)
-        interface.ip_addresses = Vec::new();
+        // IP 주소 가져오기 - ip 명령어 사용
+        interface.ip_addresses = get_ip_addresses(&iface_name).unwrap_or_default();
 
         interfaces.push(interface);
         index += 1;
@@ -138,4 +140,64 @@ fn parse_proc_net_dev(
         target_name
     ))
     .context("The interface may have been removed or renamed")
+}
+
+/// IP 주소를 가져오는 함수 - ip 명령어를 사용
+fn get_ip_addresses(interface_name: &str) -> Result<Vec<IpAddr>> {
+    let mut addresses = Vec::new();
+    
+    // ip addr show 명령어 실행
+    let output = Command::new("ip")
+        .arg("addr")
+        .arg("show")
+        .arg(interface_name)
+        .output();
+    
+    let output = match output {
+        Ok(o) => o,
+        Err(_) => {
+            // ip 명령어가 없는 경우 ifconfig 시도
+            if let Ok(o) = Command::new("ifconfig")
+                .arg(interface_name)
+                .output()
+            {
+                o
+            } else {
+                return Ok(addresses); // 두 명령어 모두 실패하면 빈 배열 반환
+            }
+        }
+    };
+    
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    // IP 주소 파싱 - inet 또는 inet6 라인 찾기
+    for line in stdout.lines() {
+        let line = line.trim();
+        
+        // IPv4 주소 찾기 (inet 라인)
+        if line.starts_with("inet ") {
+            if let Some(addr_part) = line.split_whitespace().nth(1) {
+                if let Some(ip_str) = addr_part.split('/').next() {
+                    if let Ok(ip) = ip_str.parse::<IpAddr>() {
+                        addresses.push(ip);
+                    }
+                }
+            }
+        }
+        // IPv6 주소 찾기 (inet6 라인)
+        else if line.starts_with("inet6 ") {
+            if let Some(addr_part) = line.split_whitespace().nth(1) {
+                if let Some(ip_str) = addr_part.split('/').next() {
+                    if let Ok(ip) = ip_str.parse::<IpAddr>() {
+                        // 링크로컬 주소는 제외 (fe80::로 시작)
+                        if !ip_str.starts_with("fe80:") {
+                            addresses.push(ip);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(addresses)
 }

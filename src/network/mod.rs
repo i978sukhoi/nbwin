@@ -4,6 +4,7 @@
 // 공통 모듈들 (크로스플랫폼)
 pub mod interface; // 네트워크 인터페이스 정보 처리 (interface.rs)
 pub mod parallel_stats;
+pub mod public_ip; // Public IP 주소 조회 (public_ip.rs)
 pub mod stats; // 네트워크 통계 및 대역폭 계산 (stats.rs) // 병렬 통계 수집 (parallel_stats.rs)
 
 // 플랫폼별 API 모듈들 (조건부 컴파일)
