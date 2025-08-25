@@ -265,17 +265,18 @@ impl ImprovedApp {
 
     fn update_stats(&mut self) -> Result<()> {
         // Public IP 업데이트 (5분마다 또는 처음)
-        let should_update_public_ip = self.last_public_ip_update
+        let should_update_public_ip = self
+            .last_public_ip_update
             .map(|last| last.elapsed() > Duration::from_secs(300))
             .unwrap_or(true);
-        
+
         if should_update_public_ip {
             if let Some(ip) = public_ip::get_public_ip() {
                 self.public_ip = Some(ip);
                 self.last_public_ip_update = Some(Instant::now());
             }
         }
-        
+
         // 개선된 에러 처리: 안전한 인덱스 접근
         let interface_idx = self.get_current_interface_index()?;
         let interface = &self.interfaces[interface_idx];
@@ -421,7 +422,7 @@ impl ImprovedApp {
         let ip_display = if let Some(local_ip) = interface.ip_addresses.first() {
             let is_private = public_ip::is_private_ip(local_ip);
             let local_str = local_ip.to_string();
-            
+
             if is_private {
                 // 사설 IP인 경우 Public IP도 함께 표시
                 if let Some(ref public_ip) = self.public_ip {
@@ -433,12 +434,10 @@ impl ImprovedApp {
                 // 이미 공인 IP인 경우
                 local_str
             }
+        } else if cfg!(unix) {
+            "None (install 'ip' or 'ifconfig')".to_string()
         } else {
-            if cfg!(unix) {
-                "None (install 'ip' or 'ifconfig')".to_string()
-            } else {
-                "None".to_string()
-            }
+            "None".to_string()
         };
 
         // Single line with all essential info

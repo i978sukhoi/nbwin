@@ -49,10 +49,10 @@ static CACHE: Lazy<Mutex<PublicIpCache>> = Lazy::new(|| Mutex::new(PublicIpCache
 
 // Public IP 서비스 목록 (폴백 지원)
 const IP_SERVICES: &[&str] = &[
-    "https://api.ipify.org",           // 가장 간단하고 빠름
-    "https://checkip.amazonaws.com",   // AWS 제공, 신뢰성 높음
-    "https://ipinfo.io/ip",           // 추가 정보 제공 가능
-    "https://ifconfig.me/ip",         // 전통적인 서비스
+    "https://api.ipify.org",         // 가장 간단하고 빠름
+    "https://checkip.amazonaws.com", // AWS 제공, 신뢰성 높음
+    "https://ipinfo.io/ip",          // 추가 정보 제공 가능
+    "https://ifconfig.me/ip",        // 전통적인 서비스
 ];
 
 /// Public IP 주소를 가져오는 함수
@@ -102,10 +102,7 @@ fn fetch_public_ip() -> Option<String> {
 
 /// 특정 서비스에서 IP 주소를 가져오는 함수
 fn try_fetch_from_service(client: &reqwest::blocking::Client, url: &str) -> Result<String> {
-    let response = client
-        .get(url)
-        .send()
-        .context("Failed to send request")?;
+    let response = client.get(url).send().context("Failed to send request")?;
 
     if !response.status().is_success() {
         anyhow::bail!("HTTP request failed with status: {}", response.status());
@@ -129,10 +126,9 @@ fn is_valid_ip(ip: &str) -> bool {
 /// 비동기 버전 - 백그라운드에서 Public IP 업데이트
 pub fn update_public_ip_async() {
     std::thread::spawn(|| {
-        fetch_public_ip().and_then(|ip| {
+        fetch_public_ip().inspect(|ip| {
             let mut cache = CACHE.lock().unwrap();
             cache.set(ip.clone());
-            Some(ip)
         });
     });
 }
@@ -153,14 +149,14 @@ pub fn is_private_ip(ip: &std::net::IpAddr) -> bool {
             (octets[0] == 10)  // 10.0.0.0/8
                 || (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31)  // 172.16.0.0/12
                 || (octets[0] == 192 && octets[1] == 168)  // 192.168.0.0/16
-                || (octets[0] == 127)  // 127.0.0.0/8 (loopback)
+                || (octets[0] == 127) // 127.0.0.0/8 (loopback)
         }
         std::net::IpAddr::V6(ipv6) => {
             // IPv6 private/local addresses
-            ipv6.is_loopback() 
+            ipv6.is_loopback()
                 || ipv6.is_unspecified()
                 || ipv6.segments()[0] & 0xfe00 == 0xfc00  // Unique local
-                || ipv6.segments()[0] & 0xffc0 == 0xfe80  // Link local
+                || ipv6.segments()[0] & 0xffc0 == 0xfe80 // Link local
         }
     }
 }
