@@ -175,11 +175,7 @@ fn run_simple_mode() -> Result<()> {
             }
 
             // 사설 IP가 있는 경우 Public IP도 표시
-            if iface
-                .ip_addresses
-                .iter()
-                .any(public_ip::is_private_ip)
-            {
+            if iface.ip_addresses.iter().any(public_ip::is_private_ip) {
                 print!("    Public IP: ");
                 if let Some(public_ip_addr) = public_ip::get_public_ip() {
                     println!("{}", public_ip_addr);
