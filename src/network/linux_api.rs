@@ -145,35 +145,32 @@ fn parse_proc_net_dev(
 /// IP 주소를 가져오는 함수 - ip 명령어를 사용
 fn get_ip_addresses(interface_name: &str) -> Result<Vec<IpAddr>> {
     let mut addresses = Vec::new();
-    
+
     // ip addr show 명령어 실행
     let output = Command::new("ip")
         .arg("addr")
         .arg("show")
         .arg(interface_name)
         .output();
-    
+
     let output = match output {
         Ok(o) => o,
         Err(_) => {
             // ip 명령어가 없는 경우 ifconfig 시도
-            if let Ok(o) = Command::new("ifconfig")
-                .arg(interface_name)
-                .output()
-            {
+            if let Ok(o) = Command::new("ifconfig").arg(interface_name).output() {
                 o
             } else {
                 return Ok(addresses); // 두 명령어 모두 실패하면 빈 배열 반환
             }
         }
     };
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // IP 주소 파싱 - inet 또는 inet6 라인 찾기
     for line in stdout.lines() {
         let line = line.trim();
-        
+
         // IPv4 주소 찾기 (inet 라인)
         if line.starts_with("inet ") {
             if let Some(addr_part) = line.split_whitespace().nth(1) {
@@ -198,6 +195,6 @@ fn get_ip_addresses(interface_name: &str) -> Result<Vec<IpAddr>> {
             }
         }
     }
-    
+
     Ok(addresses)
 }
