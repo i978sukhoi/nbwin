@@ -13,7 +13,10 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 
 // 우리가 만든 라이브러리에서 필요한 구조체들을 import
-use nbmon::{network::{interface, public_ip}, App, ImprovedApp};
+use nbmon::{
+    network::{interface, public_ip},
+    App, ImprovedApp,
+};
 
 // fn main() -> Result<()>: 메인 함수
 // Result<()>는 성공시 (), 실패시 에러를 반환하는 타입
@@ -170,9 +173,13 @@ fn run_simple_mode() -> Result<()> {
                     println!("        - {} (Public)", ip);
                 }
             }
-            
+
             // 사설 IP가 있는 경우 Public IP도 표시
-            if iface.ip_addresses.iter().any(|ip| public_ip::is_private_ip(ip)) {
+            if iface
+                .ip_addresses
+                .iter()
+                .any(public_ip::is_private_ip)
+            {
                 print!("    Public IP: ");
                 if let Some(public_ip_addr) = public_ip::get_public_ip() {
                     println!("{}", public_ip_addr);
@@ -289,7 +296,10 @@ fn run_classic_tui() -> Result<()> {
 
 /// 도움말 메시지를 출력하는 함수
 fn show_help() {
-    println!("NBMon v{} - Cross-platform Network Bandwidth Monitor", env!("CARGO_PKG_VERSION"));
+    println!(
+        "NBMon v{} - Cross-platform Network Bandwidth Monitor",
+        env!("CARGO_PKG_VERSION")
+    );
     println!("Linux의 nload와 bmon에서 영감을 받은 실시간 네트워크 트래픽 모니터링 도구");
     println!();
     println!("사용법:");
