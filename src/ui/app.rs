@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 use crate::network::parallel_stats::collect_all_stats_parallel;
 use crate::network::{
     interface::NetworkInterface,
+    public_ip,
     stats::{BandwidthStats, InterfaceStats},
 };
 use crate::utils::format;
@@ -238,6 +239,35 @@ impl App {
                     ),
                 ]));
             }
+            
+            // IP 주소 표시 - Private과 Public 구분
+            let ip_text = if let Some(local_ip) = interface.ip_addresses.first() {
+                let is_private = public_ip::is_private_ip(local_ip);
+                let local_str = local_ip.to_string();
+                
+                if is_private {
+                    // 사설 IP인 경우 Public IP도 함께 표시
+                    if let Some(public_ip) = public_ip::get_public_ip() {
+                        format!("{} (Public: {})", local_str, public_ip)
+                    } else {
+                        format!("{} (Fetching public IP...)", local_str)
+                    }
+                } else {
+                    // 이미 공인 IP인 경우
+                    local_str
+                }
+            } else {
+                if cfg!(unix) {
+                    "None (install 'ip' or 'ifconfig')".to_string()
+                } else {
+                    "None".to_string()
+                }
+            };
+            
+            lines.push(Line::from(vec![
+                Span::raw("IP: "),
+                Span::styled(ip_text, Style::default().fg(Color::Yellow)),
+            ]));
 
             let text = Text::from(lines);
             let paragraph = Paragraph::new(text).block(
